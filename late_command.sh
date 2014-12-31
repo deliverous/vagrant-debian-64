@@ -18,6 +18,11 @@ sed "s/quiet splash//" /etc/default/grub > /tmp/grub
 sed "s/GRUB_TIMEOUT=[0-9]/GRUB_TIMEOUT=0/" /tmp/grub > /etc/default/grub
 update-grub
 
+# remove /todelete partition
+umount /todelete
+sed -e '/todelete/d' -i /etc/fstab
+echo -e "d\n2\nw" | fdisk /dev/sda
+
 # clean up
 apt-get clean
 
