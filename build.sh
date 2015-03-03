@@ -23,8 +23,8 @@ set -o errexit
 
 # Configurations
 BOX="debian-wheezy-64"
-ISO_URL="http://cdimage.debian.org/debian-cd/7.7.0/amd64/iso-cd/debian-7.7.0-amd64-netinst.iso"
-ISO_MD5="0b31bccccb048d20b551f70830bb7ad0"
+ISO_URL="http://cdimage.debian.org/debian-cd/7.8.0/amd64/iso-cd/debian-7.8.0-amd64-netinst.iso"
+ISO_MD5="a91fba5001cf0fbccb44a7ae38c63b6e"
 
 # location, location, location
 FOLDER_BASE=$(pwd)
@@ -53,7 +53,7 @@ LATE_CMD="${LATE_CMD:-"$DEFAULT_LATE_CMD"}"
 
 # Parameter changes from 4.2 to 4.3
 if [[ "$VBOX_VERSION" < 4.3 ]]; then
-  PORTCOUNT="--sataportcount 1"
+  PORTCOUNT="--sataportcount 2"
 else
   PORTCOUNT="--portcount 1"
 fi
@@ -161,7 +161,7 @@ if [ ! -e "${FOLDER_ISO}/custom.iso" ]; then
   chmod u+w "${FOLDER_ISO_CUSTOM}/isolinux/isolinux.bin"
 
   # add late_command script
-  echo "Add late_command script ..."
+  echo "Add late_command script (${LATE_CMD}) ..."
   chmod u+w "${FOLDER_ISO_CUSTOM}"
   cp "${LATE_CMD}" "${FOLDER_ISO_CUSTOM}/late_command.sh"
 
@@ -214,7 +214,11 @@ if ! VBoxManage showvminfo "${BOX}" >/dev/null 2>&1; then
     --hostiocache off
 
   VBoxManage createhd \
-    --filename "${FOLDER_VBOX}/${BOX}/${BOX}.vdi" \
+    --filename "${FOLDER_VBOX}/${BOX}/${BOX}_sda.vdi" \
+    --size 40960
+
+  VBoxManage createhd \
+    --filename "${FOLDER_VBOX}/${BOX}/${BOX}_sdb.vdi" \
     --size 40960
 
   VBoxManage storageattach "${BOX}" \
@@ -222,7 +226,14 @@ if ! VBoxManage showvminfo "${BOX}" >/dev/null 2>&1; then
     --port 0 \
     --device 0 \
     --type hdd \
-    --medium "${FOLDER_VBOX}/${BOX}/${BOX}.vdi"
+    --medium "${FOLDER_VBOX}/${BOX}/${BOX}_sda.vdi"
+
+  VBoxManage storageattach "${BOX}" \
+    --storagectl "SATA Controller" \
+    --port 1 \
+    --device 0 \
+    --type hdd \
+    --medium "${FOLDER_VBOX}/${BOX}/${BOX}_sdb.vdi"
 
   ${STARTVM}
 
@@ -240,6 +251,10 @@ if ! VBoxManage showvminfo "${BOX}" >/dev/null 2>&1; then
     --type dvddrive \
     --medium emptydrive
 fi
+
+echo "Compacting disk"
+vboxmanage modifyhd --compact "${FOLDER_VBOX}/${BOX}/${BOX}_sda.vdi"
+vboxmanage modifyhd --compact "${FOLDER_VBOX}/${BOX}/${BOX}_sdb.vdi"
 
 echo "Building Vagrant Box ..."
 vagrant package --base "${BOX}" --output "${BOX}.box"
